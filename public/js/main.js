@@ -30,33 +30,27 @@ $(document).ready(function() {
       .addClass('animated fadeInDown');
   });
 
-  //$('.completed-challenge').on('click', function() {
-  //    $('#complete-challenge-dialog').modal('show');
-  //    // Only post to server if there is an authenticated user
-  //    if ($('.signup-btn-nav').length < 1) {
-  //        l = location.pathname.split('/');
-  //        cn = l[l.length - 1];
-  //        $.ajax({
-  //            type: 'POST',
-  //            data: {challengeNumber: cn},
-  //            url: '/completed-challenge/'
-  //        });
-  //    }
-  //});
+  $('.challenge-list-checkbox').on('change', function() {
+    if ($(this).is(":checked")) {
+      $(this).parent().parent().children('.step-text').addClass('strikethrough text-primary');
+    }
+    if (!$(this).is(":checked")) {
+      $(this).parent().parent().children('.step-text').removeClass('strikethrough text-primary');
+    }
+  });
 
-
-  function completedBonfire(didCompleteWith, bonfireSolution, thisBonfireHash) {
+  function completedBonfire(didCompleteWith, bonfireSolution, thisBonfireHash, bonfireName) {
     $('#complete-bonfire-dialog').modal('show');
     // Only post to server if there is an authenticated user
     if ($('.signup-btn-nav').length < 1) {
-
       $.post(
         '/completed-bonfire',
         {
           bonfireInfo: {
-            completedWith : didCompleteWith,
+            completedWith: didCompleteWith,
             solution: bonfireSolution,
-            bonfireHash: thisBonfireHash
+            bonfireHash: thisBonfireHash,
+            bonfireName: bonfireName
           }
         },
         function(res) {
@@ -67,12 +61,40 @@ $(document).ready(function() {
     }
   }
 
+  function completedFieldGuide(fieldGuideId) {
+    if ($('.signup-btn-nav').length < 1) {
+      $.post(
+        '/completed-field-guide',
+        {
+          fieldGuideInfo: {
+            fieldGuideId: fieldGuideId
+          }
+        },
+        function(res) {
+          if (res) {
+            window.location.href = '/field-guide'
+          }
+        });
+    }
+  }
+
   $('.next-bonfire-button').on('click', function() {
     var bonfireSolution = myCodeMirror.getValue();
     var thisBonfireHash = passedBonfireHash || null;
+    var bonfireName = $('#bonfire-name').text();
     var didCompleteWith = $('#completed-with').val() || null;
-    completedBonfire(didCompleteWith, bonfireSolution, thisBonfireHash);
+    completedBonfire(didCompleteWith, bonfireSolution, thisBonfireHash, bonfireName);
 
+  });
+
+  $('.next-field-guide-button').on('click', function() {
+    console.log('click');
+    var fieldGuideId = $('#fieldGuideId').text();
+    completedFieldGuide(fieldGuideId);
+  });
+
+  $("img").error(function () {
+    $(this).unbind("error").attr("src", "https://s3.amazonaws.com/freecodecamp/camper-image-placeholder.png");
   });
 
   $('#completed-courseware').on('click', function() {
@@ -87,21 +109,10 @@ $(document).ready(function() {
     editor.focus();
   });
 
-  $('#all-bonfires-dialog').on('hidden.bs.modal', function() {
-    editor.focus();
-  });
-
-  $('#showAllCoursewares').on('click', function() {
-    $('#all-coursewares-dialog').modal('show');
-  });
-
-  $('#all-coursewares-dialog').on('hidden.bs.modal', function() {
-    editor.focus();
-  });
-
   $('#complete-courseware-dialog').on('hidden.bs.modal', function() {
     editor.focus();
   });
+
   $('#next-courseware-button').on('click', function() {
     console.log(passedCoursewareHash);
     if ($('.signup-btn-nav').length < 1) {
@@ -158,7 +169,8 @@ $(document).ready(function() {
                 completedWith: didCompleteWith,
                 publicURL: publicURL,
                 githubURL: githubURL,
-                challengeType: challengeType
+                challengeType: challengeType,
+                verified: false
               }
             }).success(function() {
               window.location.href = '/challenges';
@@ -173,20 +185,18 @@ $(document).ready(function() {
     }
   });
 
-
   $('.all-challenges').on('click', function() {
-    $('#all-challenges-dialog').modal('show');
+    $('#show-all-dialog').modal('show');
   });
 
   $('#showAllButton').on('click', function() {
-    $('#all-challenges-dialog').modal('show');
+    $('#show-all-dialog').modal('show');
   });
 
   $('.next-challenge-button').on('click', function() {
     l = location.pathname.split('/');
     window.location = '/challenges/' + (parseInt(l[l.length - 1]) + 1);
   });
-
 
 // Bonfire instructions functions
   $('#more-info').on('click', function() {
@@ -230,7 +240,6 @@ $(document).ready(function() {
   };
   $('#upvote').on('click', upvoteHandler);
 
-
   var storySubmitButtonHandler = function storySubmitButtonHandler() {
 
     var link = $('#story-url').val();
@@ -249,10 +258,12 @@ $(document).ready(function() {
           timePosted: Date.now(),
           description: description,
           storyMetaDescription: storyMetaDescription,
+          originalStoryAuthorEmail: user.email,
           rank: 1,
           upVotes: [userDataForUpvote],
           author: {
             picture: user.profile.picture,
+            email: user.email,
             userId: user._id,
             username: user.profile.username
           },
@@ -280,11 +291,14 @@ $(document).ready(function() {
       {
         data: {
           associatedPost: storyId,
+          originalStoryLink: originalStoryLink,
+          originalStoryAuthorEmail: originalStoryAuthorEmail,
           body: data,
           author: {
             picture: user.profile.picture,
             userId: user._id,
-            username: user.profile.username
+            username: user.profile.username,
+            email: user.email
           }
         }
       })
@@ -294,7 +308,6 @@ $(document).ready(function() {
       .done(function (data, textStatus, xhr) {
         window.location.reload();
       });
-
   };
 
   $('#comment-button').on('click', commentSubmitButtonHandler);

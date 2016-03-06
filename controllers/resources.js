@@ -3,12 +3,16 @@ var async = require('async'),
   Challenge = require('./../models/Challenge'),
   Bonfire = require('./../models/Bonfire'),
   Story = require('./../models/Story'),
+  FieldGuide = require('./../models/FieldGuide'),
+  Nonprofit = require('./../models/Nonprofit'),
   Comment = require('./../models/Comment'),
   resources = require('./resources.json'),
   steps = resources.steps,
   secrets = require('./../config/secrets'),
   bonfires = require('../seed_data/bonfires.json'),
+  nonprofits = require('../seed_data/nonprofits.json'),
   coursewares = require('../seed_data/coursewares.json'),
+  fieldGuides = require('../seed_data/field-guides.json'),
   moment = require('moment'),
   https = require('https'),
   debug = require('debug')('freecc:cntr:resources'),
@@ -48,7 +52,7 @@ module.exports = {
         debug('User err: ', err);
         return next(err);
       }
-      Challenge.find({}, function (err, challenges) {
+      Courseware.find({}, function (err, challenges) {
         if (err) {
           debug('User err: ', err);
           return next(err);
@@ -63,14 +67,28 @@ module.exports = {
               debug('User err: ', err);
               return next(err);
             }
-            res.header('Content-Type', 'application/xml');
-            res.render('resources/sitemap', {
-              appUrl: appUrl,
-              now: now,
-              users: users,
-              challenges: challenges,
-              bonfires: bonfires,
-              stories: stories
+            Nonprofit.find({}, function (err, nonprofits) {
+              if (err) {
+                debug('User err: ', err);
+                return next(err);
+              }
+              FieldGuide.find({}, function (err, fieldGuides) {
+                if (err) {
+                  debug('User err: ', err);
+                  return next(err);
+                }
+                res.header('Content-Type', 'application/xml');
+                res.render('resources/sitemap', {
+                  appUrl: appUrl,
+                  now: now,
+                  users: users,
+                  challenges: challenges,
+                  bonfires: bonfires,
+                  stories: stories,
+                  nonprofits: nonprofits,
+                  fieldGuides: fieldGuides
+                });
+              });
             });
           });
         });
@@ -78,91 +96,20 @@ module.exports = {
     });
   },
 
-  deployAWebsite: function deployAWebsite(req, res) {
-    res.render('resources/deploy-a-website', {
-      title: 'Deploy a Dynamic Website in 7 Minutes'
-    });
+  chat: function chat(req, res) {
+    if (req.user && req.user.progressTimestamps.length > 5) {
+      res.redirect('http://freecode.slack.com');
+    } else {
+      res.render('resources/chat', {
+        title: "Watch us code live on Twitch.tv"
+      });
+    }
   },
 
-  chat: function chat(req, res) {
-    res.render('resources/chat', {
+  twitch: function twitch(req, res) {
+    res.render('resources/twitch', {
       title: "Enter Free Code Camp's Chat Rooms"
     });
-  },
-
-  nonprofitProjectInstructions: function nonprofitProjectInstructions(req, res) {
-    res.render('resources/nonprofit-project-instructions', {
-      title: 'Nonprofit Project Instructions'
-    });
-  },
-
-  gmailShortcuts: function gmailShortcuts(req, res) {
-    res.render('resources/gmail-shortcuts', {
-      title: 'These Gmail Shortcuts will save you Hours'
-    });
-  },
-
-  guideToOurNonprofitProjects: function guideToOurNonprofitProjects(req, res) {
-    res.render('resources/guide-to-our-nonprofit-projects', {
-      title: 'A guide to our Nonprofit Projects'
-    });
-  },
-
-  controlShortcuts: function controlShortcuts(req, res) {
-    res.render('resources/control-shortcuts', {
-      title: 'These Control Shortcuts will save you Hours'
-    });
-  },
-
-  chromebook: function chromebook(req, res) {
-    res.render('resources/chromebook', {
-      title: 'Win a Chromebook'
-    });
-  },
-
-  jqueryExercises: function jqueryExercises(req, res) {
-    res.render('resources/jquery-exercises', {
-      title: 'jQuery Exercises'
-    });
-  },
-
-  livePairProgramming: function(req, res) {
-    res.render('resources/live-pair-programming', {
-      title: 'Live Pair Programming'
-    });
-  },
-
-  installScreenHero: function(req, res) {
-    res.render('resources/install-screenhero', {
-      title: 'Install ScreenHero'
-    });
-  },
-
-  javaScriptInYourInbox: function(req, res) {
-    res.render('resources/javascript-in-your-inbox', {
-      title: 'JavaScript in your Inbox'
-    });
-  },
-
-  nodeSchoolChallenges: function(req, res) {
-    res.render('resources/nodeschool-challenges', {
-      title: 'NodeSchool Challenges'
-    });
-  },
-
-  trelloCalls: function(req, res, next) {
-      request('https://trello.com/1/boards/BA3xVpz9/cards?key=' + secrets.trello.key, function(err, status, trello) {
-          if (err) { return next(err); }
-          trello = (status && status.statusCode == 200) ? (JSON.parse(trello)) : "Can't connect to to Trello";
-          res.end(JSON.stringify(trello));
-      });
-  },
-  bloggerCalls: function(req, res, next) {
-      request('https://www.googleapis.com/blogger/v3/blogs/2421288658305323950/posts?key=' + secrets.blogger.key, function (err, status, blog) {
-          if (err) { return next(err); }
-          blog = (status && status.statusCode == 200) ? JSON.parse(blog) : "Can't connect to Blogger";
-          res.end(JSON.stringify(blog));
-      });
   },
 
   githubCalls: function(req, res) {
@@ -183,6 +130,7 @@ module.exports = {
       res.end(JSON.stringify(trello));
     });
   },
+
   bloggerCalls: function(req, res, next) {
     request('https://www.googleapis.com/blogger/v3/blogs/2421288658305323950/posts?key=' + secrets.blogger.key, function (err, status, blog) {
       if (err) { return next(err); }
@@ -200,53 +148,6 @@ module.exports = {
     }
     var date1 = new Date("10/15/2014");
     var date2 = new Date();
-
-    var progressTimestamps = req.user.progressTimestamps;
-    var now = Date.now() || 0;
-
-    if (req.user.pointsNeedMigration) {
-      var challengesHash = req.user.challengesHash;
-      for (var key in challengesHash) {
-        if (challengesHash[key] > 0) {
-          req.user.progressTimestamps.push(challengesHash[key]);
-        }
-      }
-
-      var oldChallengeKeys = R.keys(req.user.challengesHash);
-
-      var updatedTimesFromOldChallenges = oldChallengeKeys.map(function(timeStamp) {
-        if (timeStamp.toString().length !== 13) {
-          timeStamp *= 1000;
-        }
-        return timeStamp;
-      });
-
-      var newTimeStamps = R.map(function(timeStamp) {
-        if (timeStamp.toString().length !== 13) {
-          timeStamp *= 1000;
-        }
-        return timeStamp;
-      }, req.user.progressTimestamps);
-
-      req.user.progressTimestamps = newTimeStamps;
-
-
-      req.user.completedCoursewares = Array.zip(updatedTimesFromOldChallenges, coursewares,
-        function(left, right) {
-          return ({
-            completedDate: left.timeStamp,
-            _id: right._id,
-            name: right.name
-          });
-        }).filter(function(elem) {
-          return elem.completedDate !== 0;
-        });
-      req.user.pointsNeedMigration = false;
-      req.user.save();
-    }
-    if (progressTimestamps[progressTimestamps.length - 1] <= (now - 43200)) {
-      req.user.progressTimestamps.push(now);
-    }
 
     var timeDiff = Math.abs(date2.getTime() - date1.getTime());
     var daysRunning = Math.ceil(timeDiff / (1000 * 3600 * 24));
@@ -266,16 +167,14 @@ module.exports = {
         }
 
         res.render('resources/learn-to-code', {
-          title: 'About Free Code Camp and Our Team of Volunteers',
+          title: 'About Free Code Camp',
           daysRunning: daysRunning,
           c3: numberWithCommas(c3),
-          all: all,
           announcements: announcements
         });
       });
     });
   },
-
 
   randomPhrase: function() {
     var phrases = resources.phrases;
@@ -306,6 +205,18 @@ module.exports = {
         return elem._id;
       });
   },
+
+  allFieldGuideIds: function() {
+    return fieldGuides.map(function(elem) {
+      return {
+        _id: elem._id,
+      }
+    })
+    .map(function(elem) {
+      return elem._id;
+    });
+  },
+
   allBonfireNames: function() {
     return bonfires.map(function(elem) {
       return {
@@ -325,9 +236,20 @@ module.exports = {
     });
   },
 
-  getAllCourses: function() {
-    "use strict";
-    return coursewares;
+  allFieldGuideNames: function() {
+    return fieldGuides.map(function(elem) {
+      return {
+        name: elem.name
+      }
+    })
+  },
+
+  allNonprofitNames: function() {
+    return nonprofits.map(function(elem) {
+      return {
+        name: elem.name
+      }
+    })
   },
 
   allCoursewareIds: function() {
@@ -344,11 +266,13 @@ module.exports = {
         return elem._id;
       });
   },
+
   allCoursewareNames: function() {
     return coursewares.map(function(elem) {
       return {
         name: elem.name,
         difficulty: elem.difficulty,
+        challengeType: elem.challengeType,
         _id: elem._id
       };
     })
@@ -358,13 +282,16 @@ module.exports = {
       .map (function(elem) {
       return {
         name: elem.name,
+        challengeType: elem.challengeType,
         _id: elem._id
       };
     });
   },
+
   whichEnvironment: function() {
     return process.env.NODE_ENV;
   },
+
   getURLTitle: function(url, callback) {
     (function () {
       var result = {title: '', image: '', url: '', description: ''};
@@ -385,6 +312,7 @@ module.exports = {
       });
     })();
   },
+
   updateUserStoryPictures: function(userId, picture, username, cb) {
 
     var counter = 0,

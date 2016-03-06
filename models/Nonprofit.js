@@ -6,14 +6,10 @@ var secrets = require('../config/secrets');
  * @type {exports.Schema}
  */
 
-
+var Long = mongoose.Types.Long;
 var nonprofitSchema = new mongoose.Schema({
     name: String,
-    registeredNonprofit: true,
     requestedDeliverables: Array,
-    existingUserbase: true,
-    acceptJavascript: true,
-    agreeToTerms: true,
     whatDoesNonprofitDo: String,
     websiteLink: String,
     stakeholderName: String,
@@ -23,9 +19,10 @@ var nonprofitSchema = new mongoose.Schema({
     projectDescription: String,
     logoUrl: String,
     imageUrl: String,
-    interestedCampers: Array,
-    confirmedCampers: Array,
-    estimatedHours: String
+    estimatedHours: 0,
+    interestedCampers: [],
+    confirmedCampers: [],
+    currentStatus: String // "confirmed", "started", "completed", "aborted"
 });
 
 module.exports = mongoose.model('Nonprofit', nonprofitSchema);

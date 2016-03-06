@@ -7,7 +7,11 @@ block content
                 h4
                     ol
                         for step in details
-                            li!= step
+                            .row
+                                li
+                                    .col-xs-2
+                                        input(type='checkbox' class='challenge-list-checkbox')
+                                    .col-xs-10.step-text!= step
         .col-xs-12.col-sm-12.col-md-8
             .embed-responsive.embed-responsive-16by9
                 iframe.embed-responsive-item(src='//player.vimeo.com/video/#{video}')
@@ -57,7 +61,7 @@ block content
 
                     if (user)
                         a.animated.fadeIn.btn.btn-lg.btn-primary.btn-block#next-courseware-button(name='_csrf', value=_csrf, ng-disabled='completedWithForm.$invalid && existingUser.length > 0') Go to my next challenge (ctrl + enter)
-                        
+
                         - if (user.progressTimestamps.length > 2)
                             a.animated.fadeIn.btn.btn-lg.btn-block.btn-twitter(target="_blank")
                                 i.fa.fa-twitter &thinsp;
@@ -69,4 +73,9 @@ block content
                 if (e.ctrlKey && e.keyCode == 13) {
                     $('#complete-zipline-or-basejump-dialog').modal('show');
                 }
+            });
+            $('#complete-courseware-dialog').on('keypress', function(e) {
+              if (e.ctrlKey && e.keyCode === 13) {
+                $('#next-courseware-button').click();
+              }
             });

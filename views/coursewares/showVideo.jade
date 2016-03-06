@@ -7,7 +7,11 @@ block content
                 h4
                     ol
                         for step in details
-                            li!= step
+                            .row
+                                li
+                                    .col-xs-2
+                                        input(type='checkbox' class='challenge-list-checkbox')
+                                    .col-xs-10.step-text!= step
         .col-xs-12.col-sm-12.col-md-8
             .embed-responsive.embed-responsive-16by9
                 iframe.embed-responsive-item(src='//player.vimeo.com/video/#{video}')
@@ -22,7 +26,6 @@ block content
                         var userLoggedIn = false;
                 br
             .button-spacer
-            #showAllButton.btn.btn-info.btn-big.btn-block Show all challenges
         script(type="text/javascript").
                 var tests = !{JSON.stringify(tests)};
                 var passedCoursewareHash = !{JSON.stringify(coursewareHash)};
@@ -54,10 +57,11 @@ block content
                     $('#complete-courseware-dialog').modal('show');
                 }
             });
-    #all-challenges-dialog.modal(tabindex='-1')
-        .modal-dialog.animated.fadeInUp.fast-animation
-            .modal-content
-                .modal-header.all-list-header Challenges
-                    a.close.closing-x(href='#', data-dismiss='modal', aria-hidden='true') ×
-                .modal-body
-                    include ../partials/challenges
+            $('#complete-courseware-dialog').on('keypress', function(e) {
+              if (e.ctrlKey && e.keyCode === 13) {
+                $('#next-courseware-button').click();
+              }
+            });
+
+
+}}

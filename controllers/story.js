@@ -9,6 +9,7 @@ var R = require('ramda'),
   mongodb = require('mongodb'),
   MongoClient = mongodb.MongoClient,
   secrets = require('../config/secrets'),
+  nodemailer = require('nodemailer'),
   sanitizeHtml = require('sanitize-html');
 
 function hotRank(timeValue, rank) {
@@ -153,6 +154,8 @@ exports.returnIndividualStory = function(req, res, next) {
     res.render('stories/index', {
       title: story.headline,
       link: story.link,
+      originalStoryLink: dashedName,
+      originalStoryAuthorEmail: story.author.email || "",
       author: story.author,
       description: story.description,
       rank: story.upVotes.length,
@@ -232,7 +235,7 @@ exports.upvote = function(req, res, next) {
         return next(err);
       }
       user = user.pop();
-      user.progressTimestamps.push(Date.now());
+      user.progressTimestamps.push(+Date.now());
       user.save();
     });
     return res.send(story);
@@ -342,19 +345,27 @@ exports.storySubmission = function(req, res, next) {
     comments: [],
     image: data.image,
     storyLink: storyLink,
-    metaDescription: data.storyMetaDescription
+    metaDescription: data.storyMetaDescription,
+    originalStoryAuthorEmail: req.user.email
   });
 
-  req.user.progressTimestamps.push(Date.now());
-  req.user.save();
-
   story.save(function(err) {
+      if (err) {
+          return res.status(500);
+      }
+      res.send(JSON.stringify({
+          storyLink: story.storyLink.replace(/\s/g, '-').toLowerCase()
+      }));
+  });
+
+  User.find({'_id': story.author.userId}, function(err, user) {
+    'use strict';
     if (err) {
       return next(err);
     }
-    res.send(JSON.stringify({
-      storyLink: story.storyLink.replace(/\s/g, '-').toLowerCase()
-    }));
+    user = user.pop();
+    user.progressTimestamps.push(+Date.now());
+    user.save();
   });
 };
 
@@ -376,6 +387,8 @@ exports.commentSubmit = function(req, res, next) {
   }
   var comment = new Comment({
     associatedPost: data.associatedPost,
+    originalStoryLink: data.originalStoryLink,
+    originalStoryAuthorEmail: data.originalStoryAuthorEmail,
     body: sanitizedBody,
     rank: 0,
     upvotes: 0,
@@ -384,12 +397,12 @@ exports.commentSubmit = function(req, res, next) {
     topLevel: true,
     commentOn: Date.now()
   });
+
   commentSave(comment, Story, res, next);
 };
 
 exports.commentOnCommentSubmit = function(req, res, next) {
   var data = req.body.data;
-
   if (req.user._id.toString() !== data.author.userId.toString()) {
     return next(new Error('Not authorized'));
   }
@@ -410,6 +423,8 @@ exports.commentOnCommentSubmit = function(req, res, next) {
     body: sanitizedBody,
     rank: 0,
     upvotes: 0,
+    originalStoryLink: data.originalStoryLink,
+    originalStoryAuthorEmail: data.originalStoryAuthorEmail,
     author: data.author,
     comments: [],
     topLevel: false,
@@ -438,6 +453,40 @@ function commentSave(comment, Context, res, next) {
             res.send(true);
           });
         }
+        User.findOne({'profile.username': associatedStory.author.username}, function(err, recipient) {
+          if (err) {
+            return next(err);
+          }
+          var recipients = '';
+          if (data.originalStoryAuthorEmail && (data.originalStoryAuthorEmail !== recipient.email)) {
+             recipients = data.originalStoryAuthorEmail + ',' + recipient.email;
+           } else {
+             recipients = recipient.email;
+           }
+            var transporter = nodemailer.createTransport({
+              service: 'Mandrill',
+              auth: {
+                user: secrets.mandrill.user,
+                pass: secrets.mandrill.password
+              }
+            });
+            var mailOptions = {
+              to: recipients,
+              from: 'Team@freecodecamp.com',
+              subject: associatedStory.author.username + " replied to your post on Camper News",
+              text: [
+                "Just a quick heads-up: " + associatedStory.author.username + " replied to you on Camper News.",
+                "You can keep this conversation going.",
+                "Just head back to the discussion here: http://freecodecamp.com/stories/" + comment.originalStoryLink,
+                '- the Free Code Camp Volunteer Team'
+              ].join('\n')
+            };
+            transporter.sendMail(mailOptions, function (err) {
+              if (err) {
+                return err;
+              }
+            });
+        });
       });
     } catch (e) {
       // delete comment

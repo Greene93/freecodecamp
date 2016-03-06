@@ -7,18 +7,17 @@ var _ = require('lodash'),
     moment = require('moment');
 
 /**
- * Courseware controller
+ * Courseware controlle
  */
 
 exports.showAllCoursewares = function(req, res) {
   var completedList = [];
   if(req.user) {
-    completedList = req.user.completedList.map(function (elem) {
+    completedList = req.user.completedCoursewares.map(function (elem) {
       return elem._id;
     });
   }
-
-  var noDuplicatedCoursewares = R.uniq(completedCoursewares);
+  var noDuplicatedCoursewares = R.uniq(completedList);
   var data = {};
   data.coursewareList = resources.allCoursewareNames();
   data.completedList = noDuplicatedCoursewares;
@@ -41,7 +40,7 @@ exports.returnNextCourseware = function(req, res, next) {
   });
   req.user.save();
 
-  var uncompletedCoursewares = req.user.uncompletedCoursewares.shift();
+  var uncompletedCoursewares = R.head(req.user.uncompletedCoursewares);
 
 
   var displayedCoursewares = Courseware.find({'_id': uncompletedCoursewares});
@@ -58,7 +57,7 @@ exports.returnNextCourseware = function(req, res, next) {
       });
       return res.redirect('../challenges/learn-how-free-code-camp-works');
     }
-    nameString = courseware.name.toLowerCase().replace(/\s/g, '-');
+    var nameString = courseware.name.toLowerCase().replace(/\s/g, '-');
     return res.redirect('../challenges/' + nameString);
   });
 };
@@ -85,7 +84,7 @@ exports.returnIndividualCourseware = function(req, res, next) {
 
     // Redirect to full name if the user only entered a partial
     var dashedNameFull = courseware.name.toLowerCase().replace(/\s/g, '-');
-    if (dashedNameFull != dashedName) {
+    if (dashedNameFull !== dashedName) {
       return res.redirect('../challenges/' + dashedNameFull);
     }
 
@@ -154,7 +153,22 @@ exports.returnIndividualCourseware = function(req, res, next) {
           coursewareHash: courseware._id,
           challengeType: courseware.challengeType
         });
-      }
+      },
+
+      4: function() {
+          res.render('coursewares/showZiplineOrBasejump', {
+              title: courseware.name,
+              dashedName: dashedName,
+              name: courseware.name,
+              details: courseware.description,
+              video: courseware.challengeSeed[0],
+              verb: resources.randomVerb(),
+              phrase: resources.randomPhrase(),
+              compliment: resources.randomCompliment(),
+              coursewareHash: courseware._id,
+              challengeType: courseware.challengeType
+          });
+        }
     };
 
     return challengeType[courseware.challengeType]();
@@ -239,11 +253,12 @@ exports.completedCourseware = function (req, res, next) {
     completedDate: isCompletedDate,
     name: req.body.coursewareInfo.coursewareName,
     solution: null,
-    githubLink: null
+    githubLink: null,
+    verified: true
   });
-  var index = req.user.completedCoursewares.indexOf(coursewareHash);
+  var index = req.user.uncompletedCoursewares.indexOf(coursewareHash);
 
-  if (index === -1) {
+  if (index > -1) {
     req.user.progressTimestamps.push(Date.now() || 0);
     req.user.uncompletedCoursewares.splice(index, 1);
   }
@@ -265,7 +280,7 @@ exports.completedZiplineOrBasejump = function (req, res, next) {
   var isCompletedDate = Math.round(+new Date());
   var coursewareHash = req.body.coursewareInfo.coursewareHash;
   var solutionLink = req.body.coursewareInfo.publicURL;
-  var githubLink = req.body.coursewareInfo.challengeType === 4
+  var githubLink = req.body.coursewareInfo.challengeType === '4'
   ? req.body.coursewareInfo.githubURL : true;
   if (!solutionLink || !githubLink) {
     req.flash('errors', {
@@ -283,19 +298,19 @@ exports.completedZiplineOrBasejump = function (req, res, next) {
       } else {
         var index = req.user.uncompletedCoursewares.indexOf(coursewareHash);
         if (index > -1) {
-          req.user.progressTimestamps.push(Date.now() || 0);
+          req.user.progressTimestamps.push(+Date.now() || 0);
           req.user.uncompletedCoursewares.splice(index, 1);
         }
         pairedWith = pairedWith.pop();
 
-
-
         req.user.completedCoursewares.push({
           _id: coursewareHash,
+          name: req.body.coursewareInfo.coursewareName,
           completedWith: pairedWith._id,
           completedDate: isCompletedDate,
           solution: solutionLink,
-          githubLink: githubLink
+          githubLink: githubLink,
+          verified: false
         });
 
         req.user.save(function (err, user) {
@@ -311,17 +326,19 @@ exports.completedZiplineOrBasejump = function (req, res, next) {
           }
           index = pairedWith.uncompletedCoursewares.indexOf(coursewareHash);
           if (index > -1) {
-            pairedWith.progressTimestamps.push(Date.now() || 0);
+            pairedWith.progressTimestamps.push(+Date.now() || 0);
             pairedWith.uncompletedCoursewares.splice(index, 1);
 
           }
 
           pairedWith.completedCoursewares.push({
             _id: coursewareHash,
+            name: req.body.coursewareInfo.coursewareName,
             completedWith: req.user._id,
             completedDate: isCompletedDate,
             solution: solutionLink,
-            githubLink: githubLink
+            githubLink: githubLink,
+            verified: false
           });
           pairedWith.save(function (err, paired) {
             if (err) {
@@ -338,15 +355,17 @@ exports.completedZiplineOrBasejump = function (req, res, next) {
 
     req.user.completedCoursewares.push({
       _id: coursewareHash,
+      name: req.body.coursewareInfo.coursewareName,
       completedWith: null,
       completedDate: isCompletedDate,
       solution: solutionLink,
-      githubLink: githubLink
+      githubLink: githubLink,
+      verified: false
     });
 
     var index = req.user.uncompletedCoursewares.indexOf(coursewareHash);
     if (index > -1) {
-      req.user.progressTimestamps.push(Date.now() || 0);
+      req.user.progressTimestamps.push(+Date.now() || 0);
       req.user.uncompletedCoursewares.splice(index, 1);
     }
 

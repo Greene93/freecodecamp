@@ -92,15 +92,19 @@
                                     });
                                     var submitCommentToCommentHandler = function submitCommentToCommentHandler() {
                                         $('#submit-comment-to-comment').unbind('click');
+                                        console.log('in comments.jade', originalStoryAuthorEmail);
                                         $.post('/stories/comment/' + commentId + '/comment',
                                         {
                                             data: {
                                                 associatedPost: commentId,
+                                                originalStoryLink: originalStoryLink,
+                                                originalStoryAuthorEmail: originalStoryAuthorEmail,
                                                 body: $('#comment-to-comment-textinput').val(),
                                                 author: {
                                                     picture: user.profile.picture,
                                                     userId: user._id,
-                                                    username: user.profile.username
+                                                    username: user.profile.username,
+                                                    email: user.email
                                                 }
                                             }
                                         })

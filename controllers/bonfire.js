@@ -3,7 +3,6 @@ var _ = require('lodash'),
   Bonfire = require('./../models/Bonfire'),
   User = require('./../models/User'),
   resources = require('./resources'),
-  MDNlinks = require('./../seed_data/bonfireMDNlinks'),
   R = require('ramda');
   MDNlinks = require('./../seed_data/bonfireMDNlinks');
 
@@ -114,7 +113,6 @@ exports.returnIndividualBonfire = function(req, res, next) {
         details: bonfire.description.slice(1),
         tests: bonfire.tests,
         challengeSeed: bonfire.challengeSeed,
-        cc: !!req.user,
         points: req.user ? req.user.points : undefined,
         verb: resources.randomVerb(),
         phrase: resources.randomPhrase(),
@@ -177,7 +175,7 @@ function getMDNlinks(links) {
 
   return populatedLinks;
 
-};
+}
 
 /**
  *
@@ -189,11 +187,11 @@ exports.testBonfire = function(req, res) {
     bonfireDifficulty = req.body.difficulty,
     bonfireDescription = req.body.description,
     bonfireChallengeSeed = req.body.challengeSeed;
-  bonfireTests = bonfireTests.split('\r\n');
-  bonfireDescription = bonfireDescription.split('\r\n');
-  bonfireTests.filter(getRidOfEmpties);
-  bonfireDescription.filter(getRidOfEmpties);
-  bonfireChallengeSeed = bonfireChallengeSeed.replace('\r', '');
+    bonfireTests = bonfireTests.split('\r\n');
+    bonfireDescription = bonfireDescription.split('\r\n');
+    bonfireTests.filter(getRidOfEmpties);
+    bonfireDescription.filter(getRidOfEmpties);
+    bonfireChallengeSeed = bonfireChallengeSeed.replace('\r', '');
 
   res.render('bonfire/show', {
     completedWith: null,
@@ -230,11 +228,11 @@ exports.generateChallenge = function(req, res) {
     bonfireDifficulty = req.body.difficulty,
     bonfireDescription = req.body.description,
     bonfireChallengeSeed = req.body.challengeSeed;
-  bonfireTests = bonfireTests.split('\r\n');
-  bonfireDescription = bonfireDescription.split('\r\n');
-  bonfireTests.filter(getRidOfEmpties);
-  bonfireDescription.filter(getRidOfEmpties);
-  bonfireChallengeSeed = bonfireChallengeSeed.replace('\r', '');
+    bonfireTests = bonfireTests.split('\r\n');
+    bonfireDescription = bonfireDescription.split('\r\n');
+    bonfireTests.filter(getRidOfEmpties);
+    bonfireDescription.filter(getRidOfEmpties);
+    bonfireChallengeSeed = bonfireChallengeSeed.replace('\r', '');
 
 
   var response = {
@@ -253,6 +251,7 @@ exports.completedBonfire = function (req, res, next) {
   var isCompletedDate = Math.round(+new Date());
   var bonfireHash = req.body.bonfireInfo.bonfireHash;
   var isSolution = req.body.bonfireInfo.solution;
+  var bonfireName = req.body.bonfireInfo.bonfireName;
 
   if (isCompletedWith) {
     var paired = User.find({'profile.username': isCompletedWith
@@ -263,20 +262,21 @@ exports.completedBonfire = function (req, res, next) {
       } else {
         var index = req.user.uncompletedBonfires.indexOf(bonfireHash);
         if (index > -1) {
-          req.user.progressTimestamps.push(Date.now() || 0);
+          req.user.progressTimestamps.push(+Date.now() || 0);
           req.user.uncompletedBonfires.splice(index, 1);
         }
         pairedWith = pairedWith.pop();
 
         index = pairedWith.uncompletedBonfires.indexOf(bonfireHash);
         if (index > -1) {
-          pairedWith.progressTimestamps.push(Date.now() || 0);
+          pairedWith.progressTimestamps.push(+Date.now() || 0);
           pairedWith.uncompletedBonfires.splice(index, 1);
 
         }
 
         pairedWith.completedBonfires.push({
           _id: bonfireHash,
+          name: bonfireName,
           completedWith: req.user._id,
           completedDate: isCompletedDate,
           solution: isSolution
@@ -284,6 +284,7 @@ exports.completedBonfire = function (req, res, next) {
 
         req.user.completedBonfires.push({
           _id: bonfireHash,
+          name: bonfireName,
           completedWith: pairedWith._id,
           completedDate: isCompletedDate,
           solution: isSolution
@@ -307,6 +308,7 @@ exports.completedBonfire = function (req, res, next) {
   } else {
     req.user.completedBonfires.push({
       _id: bonfireHash,
+      name: bonfireName,
       completedWith: null,
       completedDate: isCompletedDate,
       solution: isSolution
@@ -315,7 +317,7 @@ exports.completedBonfire = function (req, res, next) {
     var index = req.user.uncompletedBonfires.indexOf(bonfireHash);
     if (index > -1) {
 
-      req.user.progressTimestamps.push(Date.now() || 0);
+      req.user.progressTimestamps.push(+Date.now() || 0);
       req.user.uncompletedBonfires.splice(index, 1);
     }
 
